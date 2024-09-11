@@ -1,10 +1,8 @@
 import streamlit as st
 import requests
 import numpy as np
-import sounddevice as sd
+from audio_recorder_streamlit import audio_recorder
 import io
-from scipy.io.wavfile import write
-import wave
 import openai
 from . import config
 from openai import OpenAI
@@ -102,27 +100,20 @@ def app():
         st.image(st.session_state.image_url, caption='Describe this image.')
         st.subheader('You have to describe and talk about what you see in the image. Take your time to look and analyse the image. Think about what you want to say and then start.\n You will have 30 seconds to speak about it. Focus on rich decription fluid speech.')
 
-        if st.button('Start Talking'):
-            st.session_state.recording_started = True
-            duration = 30  # seconds
-            sample_rate = 44100  # Sample rate
-            st.write('Recording started... speak now!')
-            myrecording = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='int16')
-            sd.wait()  # Wait until recording is finished
-            st.write('Recording Done!')
-            st.session_state.recording_started = False
-            # Convert the NumPy array to audio file
-            st.write('Recording stopped.')
+        #Capture audio from the user for 30 seconds
+        audio_bytes = audio_recorder(energy_threshold=(-1.0, 1.0),pause_threshold=30.0)
+       
+        if audio_bytes:
             output_file = "output2.wav"
-            with wave.open(output_file, 'w') as wf:
-                wf.setnchannels(1)  # Stereo
-                wf.setsampwidth(2)  # Sample width in bytes
-                wf.setframerate(sample_rate)
-                wf.writeframes(myrecording.tobytes())
+            with open(output_file, "wb") as f:
+                f.write(audio_bytes)
+                
 
             print(f"Audio saved to {output_file}")
-            user_description = speech_to_text("output2.wav")
+            user_description = speech_to_text(output_file)
+
             model_description = describe_image(st.session_state.image_url)
             compare_descriptions(model_description, user_description)
 
+  
 
